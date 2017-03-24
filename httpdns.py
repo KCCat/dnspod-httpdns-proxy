@@ -31,16 +31,61 @@ class httpdns(object):
     def httprequest(self, Qdata):
         self.domain=self.labelsTOdomain(Qdata[:-4])
         try:
-            Rdata=urllib.request.urlopen('http://119.29.29.29/d?dn=%s&ip=%s' % (self.domain,self.ednsip)).read().split(b';')
+            Rdata_tmp=urllib.request.urlopen('http://119.29.29.29/d?dn=%s&ip=%s' % (self.domain,self.ednsip)).read().split(b';')
         except OSError:
             print('httprequest error')
             return 0, Qdata, b''
         try:
-            Rdata=[bytes([int(y) for y in x.split(b'.')]) for x in Rdata]
+            Rdata=[bytes([int(y) for y in x.split(b'.')]) for x in Rdata_tmp]
         except ValueError:
             print('non answer')
             return 0, Qdata, b''
-        return len(Rdata), b''.join([b'\xc0\x0c\x00\x01\x00\x01',self.TTL, b'\x00\x04']).join([Qdata, *Rdata]), Rdata
+        return len(Rdata), b''.join([b'\xc0\x0c\x00\x01\x00\x01',self.TTL, b'\x00\x04']).join([Qdata, *Rdata]), Rdata_tmp
+
+class iptool(object): #prefixmatch
+
+    def __init__(self):
+        self.prefix=[ #china mobile
+        '36.128.0.0/10',
+        '39.128.0.0/10',
+        '43.251.244.0/22',
+        '45.121.172.0/22',
+        '45.121.176.0/22',
+        '103.20.112.0/22',
+        '103.21.176.0/22',
+        '103.62.24.0/22',
+        '111.0.0.0/10',
+        '112.0.0.0/10',
+        '117.128.0.0/10',
+        '120.192.0.0/10',
+        '183.192.0.0/10',
+        '211.103.0.0/17',
+        '211.136.0.0/14',
+        '211.140.0.0/15',
+        '211.142.0.0/17',
+        '211.142.128.0/17',
+        '211.143.0.0/16',
+        '218.200.0.0/14',
+        '218.204.0.0/15',
+        '218.206.0.0/15',
+        '221.130.0.0/15',
+        '221.176.0.0/13',
+        '223.64.0.0/11',
+        '223.96.0.0/12',
+        '223.112.0.0/14',
+        '223.116.0.0/15',
+        '223.120.0.0/13',
+        ]
+        self.prefix={}.fromkeys([''.join([format(int(w,10),'08b') for w in x.split('.')])[:int(y,10)] for x,y in [x.split('/') for x in self.prefix]])
+
+    def prefixmatch(self,ip):
+        ip=''.join([format(int(x,10),'08b') for x in ip.decode("ASCII").split('.')])
+        i=''
+        for x in ip:
+            i=i+x
+            if i in self.prefix:
+                return 1
+        return 0
 
 class udpdnsserver(object):
     
@@ -87,10 +132,14 @@ class udpdnsserver(object):
 if __name__ == '__main__':
     localserver=udpdnsserver(addr='0.0.0.0')
     dnspod=httpdns(ednsip='211.138.113.115')
+    ipprefix=iptool()
     while 1:
         Rcode, Qdata=localserver.input()
         if Rcode:
             localserver.output(Rcode, Rdata=Qdata)
         else:
             ANCOUNT, Rdata, tmp=dnspod.httprequest(Qdata)
-            localserver.output(Rcode, Rdata, ANCOUNT)
+            if ANCOUNT and ipprefix.prefixmatch(tmp[0]):
+                localserver.output(Rcode, Rdata, ANCOUNT)
+            else:
+                localserver.output(Rcode, Rdata=Qdata)
