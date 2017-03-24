@@ -1,4 +1,4 @@
-#!/usr/bin/env pypy
+#!/usr/bin/env python3
 # encoding: utf-8
 
 #dnspod httpdns proxy
