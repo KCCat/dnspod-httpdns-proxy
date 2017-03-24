@@ -136,10 +136,10 @@ if __name__ == '__main__':
     while 1:
         Rcode, Qdata=localserver.input()
         if Rcode:
-            localserver.output(Rcode, Rdata=Qdata)
+            pass #localserver.output(Rcode, Rdata=Qdata)
         else:
             ANCOUNT, Rdata, tmp=dnspod.httprequest(Qdata)
             if ANCOUNT and ipprefix.prefixmatch(tmp[0]):
                 localserver.output(Rcode, Rdata, ANCOUNT)
             else:
-                localserver.output(Rcode, Rdata=Qdata)
+                pass #localserver.output(Rcode, Rdata=Qdata)
