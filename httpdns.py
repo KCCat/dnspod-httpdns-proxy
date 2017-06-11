@@ -79,7 +79,8 @@ class udpdnsserver(object):
     def output(self, Rcode, Rdata, ANCOUNT=0):
         if Rcode:
             self.flages=self.flages|Rcode
-        self.flages=self.flages|0x8000
+        #self.flages=self.flages|0x8000 #不能直接用请求的flag
+        self.flages=0x8080 #这样dnsmasq才会缓存结果
         Rcount=b''.join([b'\x00\x01', ANCOUNT.to_bytes(2, byteorder='big'), b'\x00\x00\x00\x00'])
         Rdata=b''.join([self.QID, self.flages.to_bytes(2, byteorder='big'), Rcount, Rdata])
         self.udpfd.sendto(Rdata, self.addr)
