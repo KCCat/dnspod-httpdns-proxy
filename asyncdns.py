@@ -26,7 +26,7 @@ import asyncio, socket
 
 fserver=[
 	('10.250.251.1',10242),
-	('192.168.8.1',53),
+	('10.250.250.1',53535),
 ]
 
 hserver=[
@@ -64,6 +64,7 @@ async def forwardudp(fdata=b'',fserver=('127.0.0.1',53), u_family=socket.AF_INET
 	while time < 1:
 		try:
 			data, addr = fd.recvfrom(1500)
+			fd.close()
 			return data, addr
 		except:
 			await asyncio.sleep(0.05)
@@ -107,17 +108,15 @@ async def workerhttp(domain='',hserver=[('119.29.29.29',80),]):
 		return_when = asyncio.FIRST_COMPLETED
 	)
 	if not len(done):
-		print("warn: httpdns timeout")
+		print(f"WARN: httpdns {domain} timeout")
 		return None
 	body = done.pop().result()
-	proc = await asyncio.create_subprocess_exec("geoiplookup", 
-		body.split(";")[0],
-		stdout=asyncio.subprocess.PIPE,
-		stderr=asyncio.subprocess.PIPE)
-	stdout, stderr = await proc.communicate()
-	if stdout.find(b'CN') == -1:
-		body=None
-	return body
+	if body:
+		if china.find(body.split(";")[0]):
+			return body
+	else: 
+		print(f"WARN: httpdns {domain} None Answer")
+	return None
 
 
 async def worker(queue):
@@ -186,6 +185,29 @@ async def udploop(queue):
 	finally:
 		transport.close()
 
+class ipv4prefixfind:
+	def __init__(self, file):
+		self.frozenset=[]
+		self.min=64
+		self.max=0
+		with open(file) as f:
+			for i in f:
+				addr, prefix = i.split('/')
+				prefix = int(prefix, 10)
+				self.min=min(self.min, prefix)
+				self.max=max(self.max, prefix)
+				addr = ''.join([('00000000'+bin(int(_,10))[2:])[-8:] for _ in addr.split('.')])
+				addr = addr[:prefix]
+				self.frozenset.append(addr)
+		self.max += 1
+		self.frozenset = frozenset(self.frozenset)
+		self.range = range(self.min, self.max)
+	def find(self, addr='127.0.0.1'):
+		str_bin_addr = ''.join([('00000000'+bin(int(_,10))[2:])[-8:] for _ in addr.split('.')])
+		for i in self.range:
+			if str_bin_addr[:i] in self.frozenset:
+				return True
+		return False
 
 async def main():
 	queue = asyncio.Queue()
@@ -194,8 +216,5 @@ async def main():
 						)
 
 
+china = ipv4prefixfind('china_ip_list.txt')
 asyncio.run(main())
-
-
-
-
