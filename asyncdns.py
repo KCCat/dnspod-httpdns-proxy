@@ -21,7 +21,6 @@
 '''
 
 
-
 import asyncio, socket
 
 fserver=[
@@ -33,6 +32,7 @@ hserver=[
 	('119.29.29.29',80),
 	('182.254.116.116',80),
 ]
+
 
 def labelsTOdomain(domain=b''):
 # b'\x03www\x06google\x03com\x00' -> 'www.google.com'
@@ -59,7 +59,6 @@ async def forwardudp(fdata=b'',fserver=('127.0.0.1',53), u_family=socket.AF_INET
 	fd = socket.socket(family=u_family, type=socket.SOCK_DGRAM)
 	fd.setblocking(0)
 	fd.sendto(fdata, fserver)
-	Done = 0
 	time = 0
 	while time < 1:
 		try:
@@ -87,16 +86,21 @@ async def workerudp(fdata=b'',fserver=[('127.0.0.1',53),]):
 
 
 async def _awaithttp(domain='',fserver=('119.29.29.29',80)):
-	reader, writer = await asyncio.open_connection(*fserver)
-	query = (
-		f"GET /d?dn={domain} HTTP/1.1\r\n"
-		f"\r\n"
-	)
-	writer.write(query.encode('latin-1'))
-	line = await reader.read()
-	line = line.split(b'\r\n\r\n')[-1].decode('latin1')
-	writer.close()
-	return line
+	try:
+		reader, writer = await asyncio.open_connection(*fserver)
+		query = (
+			f"GET /d?dn={domain} HTTP/1.1\r\n"
+			f"\r\n"
+		)
+		writer.write(query.encode('latin-1'))
+		line = await reader.read()
+		line = line.split(b'\r\n\r\n')[-1].decode('latin1')
+		writer.close()
+		return line
+	except OSError:
+		print(f"WARN: httpdns OSError")
+		await asyncio.sleep(2)
+		return None
 
 
 async def workerhttp(domain='',hserver=[('119.29.29.29',80),]):
@@ -171,7 +175,8 @@ class mianudploop(asyncio.DatagramProtocol):
 		self.loopend.cancel()
 	def datagram_received(self, fdata, faddr):
 		asyncio.run_coroutine_threadsafe(self.queue.put((fdata, faddr)), self.loop)
-		
+
+
 async def udploop(queue):
 	global udpfd
 	loop = asyncio.get_running_loop()
@@ -184,6 +189,7 @@ async def udploop(queue):
 		await loopend
 	finally:
 		transport.close()
+
 
 class ipv4prefixfind:
 	def __init__(self, file):
@@ -209,6 +215,7 @@ class ipv4prefixfind:
 				return True
 		return False
 
+
 async def main():
 	queue = asyncio.Queue()
 	await asyncio.gather(udploop(queue),
@@ -218,3 +225,4 @@ async def main():
 
 china = ipv4prefixfind('china_ip_list.txt')
 asyncio.run(main())
+
