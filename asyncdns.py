@@ -65,7 +65,7 @@ return None   |   return Answer       |
            +----------------------------+
            |                            |
            |  if dnspod answer is None  |
-           |        ues udp answer      |
+           |        use udp answer      |
            |  else use dnspod           |
            |                            |
            +----------------------------+
