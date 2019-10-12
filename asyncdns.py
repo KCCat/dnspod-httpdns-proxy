@@ -176,8 +176,10 @@ async def workerhttp(domain='',hserver=[('119.29.29.29',80),]):
 
 
 async def worker(queue):
+	global working
 	while True:
 		fdata, faddr = await queue.get()
+		working += 1
 		task = []
 		Tid, flags = fdata[0:2], int(fdata[2:4].hex(), 16)
 		if ((flags & 0xF900) == 0x0100) and (fdata[4:8] == b'\x00\x01\x00\x00'):
@@ -210,10 +212,11 @@ async def worker(queue):
 						x
 					   ]) for x in list_byt])
 			udpfd.sendto(fdata, faddr)
-			print(f'httpdns : {domain}')
+			print('working:',working,f'httpdns : {domain}')
 		elif len(done) == 2 and done[-1] != None:
 			udpfd.sendto(done[-1][0], faddr)
-			print(f'udpdns  : {done[-1][-1][0]} : {domain}')
+			print('working:',working,f'udpdns  : {done[-1][-1][0]} : {domain}')
+		working -= 1
 
 
 class mianudploop(asyncio.DatagramProtocol):
@@ -271,10 +274,10 @@ class ipv4prefixfind:
 async def main():
 	queue = asyncio.Queue()
 	await asyncio.gather(udploop(queue),
-						 *[worker(queue) for i in range(4)]
+						 *[worker(queue) for i in range(32)]
 						)
 
-
+working = 0
 china = ipv4prefixfind('china_ip_list.txt')
 asyncio.run(main())
 
